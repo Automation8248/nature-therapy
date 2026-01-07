@@ -1,32 +1,23 @@
-name: Daily Nature Video 
-
+name: Daily Nature Reel
 on:
   schedule:
-    - cron: '0 8,20 * * *' # 8 AM and 8 PM UTC
+    - cron: '0 8,20 * * *'
   workflow_dispatch:
-
 jobs:
   build-and-post:
     runs-on: ubuntu-latest
-    permissions:         # Isse bot ko permission milti hai repo mein likhne ki
+    permissions:
       contents: write
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-
-      - name: Install System Dependencies
+      - name: Install FFmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
-
-      - name: Install Python Libraries
+      - name: Install Deps
         run: pip install -r requirements.txt
-
-      - name: Run Automation Script
+      - name: Run Script
         env:
           PIXABAY_KEY: ${{ secrets.PIXABAY_KEY }}
           FREESOUND_KEY: ${{ secrets.FREESOUND_KEY }}
@@ -34,12 +25,10 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
         run: python main.py
-
-      # --- NEW STEP: Save history.txt back to repo ---
-      - name: Commit and Push History
+      - name: Save History
         run: |
-          git config --global user.name "GitHub Actions Bot"
-          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
           git add history.txt
-          git commit -m "Update video history [skip ci]" || echo "No changes to commit"
+          git commit -m "Update history [skip ci]" || echo "No changes"
           git push
