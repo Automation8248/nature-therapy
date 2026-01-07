@@ -29,12 +29,9 @@ def get_nature_video():
     page = random.randint(1, 20)
     url = f"https://pixabay.com/api/videos/?key={PIXABAY_KEY}&q=nature&per_page=10&page={page}"
     
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        hits = response.json().get('hits', [])
-    except Exception as e:
-        raise Exception(f"Pixabay Error: {e}")
+    response = requests.get(url)
+    response.raise_for_status()
+    hits = response.json().get('hits', [])
     
     selected_video = None
     for video in hits:
@@ -43,36 +40,34 @@ def get_nature_video():
             break
             
     if not selected_video:
-        if not hits: raise Exception("Pixabay par koi video nahi mila.")
+        if not hits:
+            raise Exception("Pixabay par koi video nahi mila.")
         selected_video = random.choice(hits)
 
     save_history(selected_video['id'])
     tags = selected_video.get('tags', 'nature')
     download_url = selected_video['videos']['large']['url']
     
-    v_content = requests.get(download_url).content
     with open("input_video.mp4", "wb") as f:
-        f.write(v_content)
+        f.write(requests.get(download_url).content)
     
     return "input_video.mp4", tags
 
 def get_nature_audio():
     print(">>> Step 2: Audio download kar rahe hain...")
     url = f"https://freesound.org/apiv2/search/text/?query=nature&fields=id,name,previews&token={FREESOUND_KEY}&filter=duration:[10 TO 60]"
-    try:
-        response = requests.get(url)
-        results = response.json().get('results', [])
-    except:
-        return None 
     
-    if not results: return None
+    response = requests.get(url)
+    results = response.json().get('results', [])
+    
+    if not results:
+        return None
     
     audio_data = random.choice(results)
     download_url = audio_data['previews']['preview-hq-mp3']
     
-    a_content = requests.get(download_url).content
     with open("input_audio.mp3", "wb") as f:
-        f.write(a_content)
+        f.write(requests.get(download_url).content)
     return "input_audio.mp3"
 
 def process_media(video_path, audio_path):
@@ -80,7 +75,8 @@ def process_media(video_path, audio_path):
     video_clip = VideoFileClip(video_path)
     
     target_duration = 7.5
-    if video_clip.duration < 7: target_duration = video_clip.duration
+    if video_clip.duration < 7:
+        target_duration = video_clip.duration
     
     # 9:16 Crop Logic
     target_ratio = 9/16
@@ -89,7 +85,12 @@ def process_media(video_path, audio_path):
     if current_ratio > target_ratio:
         new_width = int(video_clip.h * target_ratio)
         center_x = video_clip.w / 2
-        video_clip = video_clip.crop(x1=center_x - (new_width/2), y1=0, width=new_width, height=video_clip.h)
+        video_clip = video_clip.crop(
+            x1=center_x - (new_width/2),
+            y1=0,
+            width=new_width,
+            height=video_clip.h
+        )
     
     video_clip = video_clip.resize(height=1280)
     final_video = video_clip.subclip(0, target_duration)
@@ -106,7 +107,13 @@ def process_media(video_path, audio_path):
         final_clip = final_video
     
     output_filename = "final_output.mp4"
-    final_clip.write_videofile(output_filename, codec="libx264", audio_codec="aac", threads=4, preset='ultrafast')
+    final_clip.write_videofile(
+        output_filename,
+        codec="libx264",
+        audio_codec="aac",
+        threads=4,
+        preset='ultrafast'
+    )
     
     return output_filename
 
@@ -114,11 +121,23 @@ def generate_caption(tags_string):
     raw_tags = [t.strip() for t in tags_string.split(',')]
     main_subject = raw_tags[0].title() if raw_tags else "Nature"
     
-    titles = [f"Relaxing {main_subject} 🌿", f"Pure {main_subject} Vibes ✨", f"Nature: {main_subject} 🌍"]
+    titles = [
+        f"Relaxing {main_subject} 🌿",
+        f"Pure {main_subject} Vibes ✨",
+        f"Nature: {main_subject} 🌍"
+    ]
     title_text = random.choice(titles)
     
-    nature_keywords = ["#nature", "#wildlife", "#forest", "#mountains", "#rain", "#sky", "#trees", "#green"]
-    video_specific = [f"#{t.replace(' ', '')}" for t in raw_tags if t.replace(' ', '').isalpha()]
+    nature_keywords = [
+        "#nature", "#wildlife", "#forest",
+        "#mountains", "#rain", "#sky",
+        "#trees", "#green"
+    ]
+    video_specific = [
+        f"#{t.replace(' ', '')}"
+        for t in raw_tags
+        if t.replace(' ', '').isalpha()
+    ]
     
     pool = list(set(video_specific + nature_keywords))
     final_tags = random.sample(pool, min(8, len(pool)))
@@ -132,43 +151,38 @@ def upload_to_catbox(file_path):
     if not os.path.exists(file_path):
         raise Exception("Video file nahi mili!")
 
-    try:
-        with open(file_path, "rb") as f:
-            payload = {'reqtype': 'fileupload'}
-            files = {'fileToUpload': f}
-            response = requests.post(url, data=payload, files=files)
-            
-            if response.status_code == 200:
-                result_url = response.text.strip()
-                # LOG MEIN URL PRINT KARENGE
-                print(f"\n==========================================")
-                print(f"✅ VIDEO URL GENERATED: {result_url}")
-                print(f"==========================================\n")
-                return result_url
-            else:
-                raise Exception(f"Catbox Fail hua: {response.text}")
-    except Exception as e:
-        raise Exception(f"Catbox Error: {e}")
+    with open(file_path, "rb") as f:
+        payload = {'reqtype': 'fileupload'}
+        files = {'fileToUpload': f}
+        response = requests.post(url, data=payload, files=files)
+    
+    # 🔴 ONLY FIX — URL CLEAN + VALIDATION
+    raw_response = response.text.strip()
+    result_url = raw_response.split("\n")[0].strip()
+
+    if not result_url.startswith("https://"):
+        raise Exception(f"Invalid Catbox URL response: {raw_response}")
+
+    print("\n==========================================")
+    print(f"✅ VIDEO URL GENERATED: {result_url}")
+    print("==========================================\n")
+    return result_url
 
 def send_webhook_json(url, caption, webhook_url):
-    print(f">>> Step 5: Webhook par URL bhej rahe hain...")
+    print(">>> Step 5: Webhook par URL bhej rahe hain...")
     
-    # JSON Payload Structure
     payload = {
         "video_url": url,
+        "title": caption.split("\n")[0],
         "caption": caption,
         "status": "success"
     }
     
-    # Headers zaroori hain taaki Make.com isse JSON samjhe
     headers = {'Content-Type': 'application/json'}
-    
-    try:
-        response = requests.post(webhook_url, json=payload, headers=headers)
-        print(f"Webhook Status Code: {response.status_code}")
-        print(f"Webhook Response: {response.text}")
-    except Exception as e:
-        print(f"Webhook Error: {e}")
+    response = requests.post(webhook_url, json=payload, headers=headers)
+
+    print(f"Webhook Status Code: {response.status_code}")
+    print(f"Webhook Response: {response.text}")
 
 def send_telegram_file(file_path, caption):
     if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
@@ -186,18 +200,16 @@ if __name__ == "__main__":
         final_video = process_media(v_path, a_path)
         full_caption = generate_caption(v_tags)
         
-        # 1. Telegram (File)
+        # 1. Telegram
         send_telegram_file(final_video, full_caption)
 
-        # 2. Webhook (URL) - Yeh sabse important part hai
+        # 2. Webhook
         if WEBHOOK_URL:
-            video_url = upload_to_catbox(final_video) # URL Generate
-            if video_url:
-                send_webhook_json(video_url, full_caption, WEBHOOK_URL)
-            else:
-                print("❌ URL Generate nahi hua, Webhook skip kar rahe hain.")
+            video_url = upload_to_catbox(final_video)
+            send_webhook_json(video_url, full_caption, WEBHOOK_URL)
         
-        print("Workflow Complete!")
+        print("✅ Workflow Complete!")
     except Exception as e:
         print(f"❌ CRITICAL ERROR: {e}")
         exit(1)
+
