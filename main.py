@@ -4,6 +4,13 @@ import random
 import json
 import time
 
+# --- MoviePy Fix ---
+try:
+    from moviepy.editor import VideoFileClip, AudioFileClip
+except ImportError:
+    print("❌ Error: MoviePy library properly install nahi hui. Check requirements.txt")
+    exit(1)
+
 # --- CONFIGURATION ---
 PIXABAY_KEY = os.getenv('PIXABAY_KEY')
 FREESOUND_KEY = os.getenv('FREESOUND_KEY')
@@ -12,13 +19,6 @@ TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 WEBHOOK_URL = os.getenv('WEBHOOK_URL')
 HISTORY_FILE = "history.txt"
 
-# --- LIBRARY CHECK ---
-try:
-    from moviepy.editor import VideoFileClip, AudioFileClip
-except ImportError:
-    print("CRITICAL ERROR: 'moviepy' library failed. Check requirements.txt has 'moviepy==1.0.3'")
-    exit(1)
-
 def load_history():
     if not os.path.exists(HISTORY_FILE): return []
     with open(HISTORY_FILE, "r") as f: return f.read().splitlines()
@@ -26,144 +26,94 @@ def load_history():
 def save_history(video_id):
     with open(HISTORY_FILE, "a") as f: f.write(f"{str(video_id)}\n")
 
-# 1. DOWNLOAD CONTENT
+# 1. CONTENT FETCHING
 def get_content():
-    print(">>> STEP 1: Content Download...")
+    print(">>> Step 1: Video aur Audio download ho raha hai...")
     used_ids = load_history()
-    page = random.randint(1, 10)
+    page = random.randint(1, 20)
     
-    # Fetch Video
+    # Pixabay Video
     v_url = f"https://pixabay.com/api/videos/?key={PIXABAY_KEY}&q=nature&per_page=10&page={page}"
-    try:
-        response = requests.get(v_url)
-        response.raise_for_status()
-        hits = response.json().get('hits', [])
-        
-        # Select unique video
-        video = next((v for v in hits if str(v['id']) not in used_ids), None)
-        if not video and hits: video = random.choice(hits)
-        if not video: raise Exception("No Video Found")
-        
-        save_history(video['id'])
-        print(f"   - Video ID: {video['id']}")
-        
-        v_data = requests.get(video['videos']['large']['url']).content
-        with open("input_video.mp4", "wb") as f: f.write(v_data)
-        tags = video.get('tags', 'nature')
-    except Exception as e:
-        raise Exception(f"Pixabay Error: {e}")
-
-    # Fetch Audio
-    try:
-        a_url = f"https://freesound.org/apiv2/search/text/?query=nature&fields=id,name,previews&token={FREESOUND_KEY}&filter=duration:[10 TO 60]"
-        results = requests.get(a_url).json().get('results', [])
-        if results:
-            track = random.choice(results)
-            print(f"   - Audio: {track['name']}")
-            a_data = requests.get(track['previews']['preview-hq-mp3']).content
-            with open("input_audio.mp3", "wb") as f: f.write(a_data)
-    except: 
-        print("   - Audio fetch failed (Silent video will be used)")
-
-    return "input_video.mp4", "input_audio.mp3" if os.path.exists("input_audio.mp3") else None, tags
-
-# 2. EDIT VIDEO
-def process_video(v_path, a_path):
-    print(">>> STEP 2: Editing Video (9:16 Shorts)...")
-    clip = VideoFileClip(v_path)
+    v_res = requests.get(v_url).json().get('hits', [])
+    video = next((v for v in v_res if str(v['id']) not in used_ids), random.choice(v_res) if v_res else None)
     
-    # Duration Logic (Max 7.5s)
+    if not video: raise Exception("Pixabay video download fail.")
+    save_history(video['id'])
+    
+    with open("in_v.mp4", "wb") as f: f.write(requests.get(video['videos']['large']['url']).content)
+    
+    # Freesound Audio
+    try:
+        a_url = f"https://freesound.org/apiv2/search/text/?query=nature&fields=id,previews&token={FREESOUND_KEY}&filter=duration:[10 TO 60]"
+        a_res = requests.get(a_url).json().get('results', [])
+        if a_res:
+            with open("in_a.mp3", "wb") as f: f.write(requests.get(random.choice(a_res)['previews']['preview-hq-mp3']).content)
+    except: print("Audio skip kiya gaya.")
+    
+    return "in_v.mp4", "in_a.mp3" if os.path.exists("in_a.mp3") else None, video.get('tags', 'nature')
+
+# 2. VIDEO PROCESSING (9:16 Shorts)
+def process_video(v, a):
+    print(">>> Step 2: Video edit ho raha hai (Shorts format)...")
+    clip = VideoFileClip(v)
     duration = min(clip.duration, 7.5)
     
-    # 9:16 Crop Logic
-    w, h = clip.size
-    target_ratio = 9/16
-    current_ratio = w / h
-
-    if current_ratio > target_ratio:
-        # Too wide, crop the sides
-        new_width = int(h * target_ratio)
-        center_x = w / 2
-        clip = clip.crop(x1=center_x - new_width/2, y1=0, width=new_width, height=h)
+    # Center Crop to 9:16
+    if clip.w / clip.h > 9/16:
+        new_w = int(clip.h * (9/16))
+        clip = clip.crop(x1=clip.w/2 - new_w/2, width=new_w, height=clip.h)
     
-    # Resize and Trim
     clip = clip.resize(height=1280).subclip(0, duration)
-    
-    # Add Audio
-    if a_path:
-        audio = AudioFileClip(a_path).subclip(0, duration)
+    if a:
+        audio = AudioFileClip(a).subclip(0, duration)
         clip = clip.set_audio(audio)
         
-    output_path = "final_output.mp4"
-    clip.write_videofile(output_path, codec="libx264", audio_codec="aac", threads=4, preset='ultrafast')
-    return output_path
+    clip.write_videofile("out.mp4", codec="libx264", audio_codec="aac", threads=4, preset='ultrafast')
+    return "out.mp4"
 
-# 3. GENERATE CAPTION
+# 3. SMART CAPTION
 def get_caption(tags):
     keywords = [t.strip().replace(" ", "") for t in tags.split(',')]
-    safe_tags = [f"#{k}" for k in keywords if k.isalpha()]
-    nature_tags = ["#nature", "#wildlife", "#green", "#peace", "#earth", "#forest"]
-    
-    # Combine and pick 8
-    pool = list(set(safe_tags + nature_tags))
-    final_tags = random.sample(pool, min(8, len(pool)))
-    
-    return f"Nature Vibes 🌿\n\n{' '.join(final_tags)}"
+    pool = list(set(["#"+t for t in keywords if t.isalpha()] + ["#nature", "#forest", "#calm", "#earth"]))
+    hashtags = " ".join(random.sample(pool, min(8, len(pool))))
+    return f"Nature Peace 🌿\n\n{hashtags}"
 
-# 4. UPLOAD & SEND
-def distribute_content(file_path, caption):
-    print(">>> STEP 3: Uploading & Distributing...")
+# 4. DISTRIBUTION (TELEGRAM FILE + WEBHOOK URL)
+def distribute(file, cap):
+    print(">>> Step 3: Sending to Telegram aur Webhook...")
     
-    # A. Send to Telegram (Video File)
-    if TELEGRAM_TOKEN:
-        print("   - Sending File to Telegram...")
-        with open(file_path, 'rb') as f:
-            try:
-                requests.post(
-                    f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendVideo",
-                    files={'video': f},
-                    data={'chat_id': TELEGRAM_CHAT_ID, 'caption': caption}
-                )
-            except Exception as e:
-                print(f"Telegram Error: {e}")
+    # Telegram: Seed File
+    if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+        with open(file, 'rb') as f:
+            requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendVideo", 
+                          files={'video': f}, data={'chat_id': TELEGRAM_CHAT_ID, 'caption': cap})
+        print("✅ Telegram Sent")
 
-    # B. Send to Webhook (Video URL)
+    # Webhook: Send URL
     if WEBHOOK_URL:
-        print("   - Uploading to Catbox for Webhook URL...")
-        try:
-            with open(file_path, "rb") as f:
-                response = requests.post(
-                    "https://catbox.moe/user/api.php",
-                    data={'reqtype': 'fileupload'},
-                    files={'fileToUpload': f}
-                )
+        # Upload to Catbox for link
+        with open(file, "rb") as f:
+            res = requests.post("https://catbox.moe/user/api.php", data={'reqtype': 'fileupload'}, files={'fileToUpload': f})
+        
+        if res.status_code == 200:
+            v_url = res.text.strip()
+            print(f"✅ Catbox URL: {v_url}")
             
-            if response.status_code == 200:
-                video_url = response.text.strip()
-                print(f"   ✅ URL Generated: {video_url}")
-                
-                # Send JSON Payload to Make.com
-                payload = {
-                    "video_url": video_url,
-                    "caption": caption,
-                    "status": "ready"
-                }
-                headers = {'Content-Type': 'application/json'}
-                
-                r = requests.post(WEBHOOK_URL, json=payload, headers=headers)
-                print(f"   ✅ Webhook Sent! Status: {r.status_code}")
-            else:
-                print(f"   ❌ Catbox Upload Failed: {response.text}")
-        except Exception as e:
-            print(f"   ❌ Webhook/Upload Error: {e}")
+            # Send exactly what Make.com needs
+            payload = {"video_url": v_url, "caption": cap}
+            headers = {'Content-Type': 'application/json'}
+            requests.post(WEBHOOK_URL, data=json.dumps(payload), headers=headers)
+            print("✅ Make.com Webhook Sent")
+        else:
+            print("❌ Catbox Upload Failed")
 
 if __name__ == "__main__":
     try:
         v, a, t = get_content()
         final = process_video(v, a)
-        cap = get_caption(t)
-        distribute_content(final, cap)
-        print(">>> SUCCESS: Workflow Completed.")
+        caption = get_caption(t)
+        distribute(final, caption)
+        print("🎉 SUCCESS: Project Ready!")
     except Exception as e:
-        print(f"❌ FATAL ERROR: {e}")
+        print(f"❌ Error: {e}")
         exit(1)
