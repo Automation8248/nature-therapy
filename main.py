@@ -68,10 +68,12 @@ def process_media(video_path, audio_path):
     
     final_video.write_videofile("final_output.mp4", codec="libx264", audio_codec="aac", threads=4, preset='ultrafast')
     return "final_output.mp4"
-
+    
 def generate_caption(tags_string):
-    raw_tags = [t.strip().replace(" ", "") for t in tags_string.split(',')]
-    hashtags = " ".join([f"#{t}" for t in random.sample(raw_tags + ["nature", "forest", "peace"], min(8, len(raw_tags)+3)) if t.isalpha()])
+    raw = [t.strip().replace(" ", "") for t in tags_string.split(',')]
+    # Random sample ke saath "shorts" aur "short" ko fix kar diya hai
+    tags = random.sample(raw + ["nature", "forest", "peace"], min(6, len(raw)+1)) + ["shorts", "short"]
+    hashtags = " ".join([f"#{t}" for t in tags if t.isalpha()])
     return f"Nature Peace 🌿\n\n{hashtags}"
 
 def upload_to_catbox(file_path):
