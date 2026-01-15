@@ -2,9 +2,7 @@ name: Nature Daily Post
 
 on:
   schedule:
-    # 02:00 UTC -> 9:00 PM EST (USA Night)
-    # 14:00 UTC -> 9:00 AM EST (USA Morning)
-    - cron: '0 2,14 * * *'
+    - cron: '0 17 * * *'  # USA Dopahar (12:00 PM EST) / India Raat (10:30 PM IST)
   
   # Taaki aap manually bhi test kar sakein
   workflow_dispatch:
