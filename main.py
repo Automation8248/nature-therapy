@@ -19,13 +19,170 @@ BRANCH_NAME = "main"
 
 # List 1: Titles (Har bar inme se koi ek randomly select hoga)
 TITLES_GRID = [
-"Aaj kuch unexpected ho gaya…"
+    "Nature Never Fails to Heal",
+    "Peace Hidden in the Wild",
+    "Where Silence Speaks",
+    "The Earth Breathing Slowly",
+    "Moments of Pure Nature",
+    "Lost in Natural Beauty",
+    "Nature's Calm Therapy",
+    "The Language of the Earth",
+    "Soul Resting in Nature",
+    "Whispers of the Wilderness",
+    "Serenity Beyond Words",
+    "The Art of Nature",
+    "Nature is the Best Escape",
+    "A Walk Through Tranquility",
+    "Feel the Earth Alive",
+    "Nature's Gentle Magic",
+    "Pure Peace, Pure Nature",
+    "Wild Beauty Unfiltered",
+    "The World Before Humans",
+    "Harmony of the Planet",
+    "Calmness in Every Corner",
+    "The Rhythm of the Wild",
+    "Nature Speaks Softly",
+    "Life in Its Purest Form",
+    "The Planet at Peace",
+    "Earth’s Quiet Moments",
+    "Timeless Beauty of Nature",
+    "Nature’s Healing Energy",
+    "Breathing With the Earth",
+    "Stillness of the Natural World",
+    "Wild Yet Peaceful",
+    "Simple Beauty Everywhere",
+    "A World Without Noise",
+    "Nature Never Rushes",
+    "Calm Beyond the City",
+    "Untouched and Unbothered",
+    "Beauty Without Effort",
+    "The Soft Side of Earth",
+    "Nature’s Daily Miracle",
+    "Where Time Slows Down",
+    "Peace Found Outdoors",
+    "Nature's Gentle Flow",
+    "Alive and Free",
+    "The Quiet Planet",
+    "Every Leaf Tells a Story",
+    "Natural Wonders Around Us",
+    "Rest Your Mind Here",
+    "Beyond Human Chaos",
+    "The Calm We Forget",
+    "Nature’s Perfect Balance",
+    "Relax Into the Wild",
+    "Nothing But Nature",
+    "Escape to Simplicity",
+    "Earth’s Endless Beauty",
+    "Feel the Freshness",
+    "Moments Made by Nature",
+    "The World in Harmony",
+    "Nature is Enough",
+    "Watch the Earth Live",
+    "The Peace We Need",
+    "Born From Nature",
+    "Simple Scenes, Deep Peace",
+    "Nature's Pure Presence",
+    "The Gentle Planet",
+    "Calm Found Naturally",
+    "Nature Over Everything",
+    "Where Life Feels Real",
+    "The Wild is Calling",
+    "Nature Without Filters",
+    "The Beauty We Belong To",
+    "Earth’s Quiet Power",
+    "The Soft Touch of Nature",
+    "Return to the Natural",
+    "Nature’s Endless Story",
+    "Relax, It's Nature",
+    "The World as It Should Be",
+    "Peace Grows Here",
+    "Unseen Natural Moments",
+    "Nature’s Perfect Mood",
+    "Life Moves Naturally"
 ]
 
 
 # List 2: Captions (Har bar inme se koi ek randomly select hoga)
 CAPTIONS_GRID = [
-"Bas share karna tha ❤️"
+    "Let nature slow you down",
+    "Just breathe and listen",
+    "Peace lives here",
+    "No noise, only calm",
+    "Nature understands silence",
+    "Stay where the earth feels alive",
+    "Calm begins here",
+    "Lost but peaceful",
+    "The world feels lighter here",
+    "Quiet moments matter",
+    "Nature resets the mind",
+    "Find yourself outside",
+    "Time moves softer here",
+    "Where worries fade",
+    "Simple and beautiful",
+    "The earth never hurries",
+    "Fresh air, fresh thoughts",
+    "Let the wind guide you",
+    "Everything feels right here",
+    "Healing without words",
+    "Silence you can hear",
+    "Nature clears the mind",
+    "Peace over pressure",
+    "Slow living feels better",
+    "Let the earth comfort you",
+    "A gentle reminder to pause",
+    "Calm is natural",
+    "Nothing artificial here",
+    "The sky says relax",
+    "Stay present",
+    "The quiet we needed",
+    "Nature is enough today",
+    "Just exist for a moment",
+    "Feel the stillness",
+    "No filters needed",
+    "The soft side of life",
+    "Take a deep breath",
+    "Peace grows slowly",
+    "Where thoughts rest",
+    "Every second feels longer",
+    "Listen to the leaves",
+    "Free your mind",
+    "Earth feels alive",
+    "Rest your eyes",
+    "Gentle moments",
+    "Pause and feel",
+    "Let nature speak",
+    "Breathe deeper",
+    "The calm place",
+    "Stillness is powerful",
+    "Find comfort outside",
+    "The day feels softer",
+    "Unwind naturally",
+    "Beauty without effort",
+    "Let the mind wander",
+    "Peace over everything",
+    "Watch, don’t rush",
+    "Nature heals quietly",
+    "Drift into calm",
+    "Just be here",
+    "Soft and slow",
+    "The world is gentle here",
+    "Silence feels full",
+    "Nature welcomes you",
+    "Relax your thoughts",
+    "Flow with the moment",
+    "The earth is patient",
+    "Feel grounded",
+    "Nothing to prove here",
+    "Calm feels better",
+    "Peace in motion",
+    "Let your mind rest",
+    "Quiet outside, quiet inside",
+    "The natural rhythm",
+    "Stay soft",
+    "The pause we needed",
+    "Live this moment",
+    "Nature holds the answer",
+    "Slow is beautiful"
 ]
 
 
@@ -44,20 +201,20 @@ INSTA_HASHTAGS = """
 .
 .
 .
-"#viral #fyp #trending #explorepage #ytshorts"
+"#viral #fyp #reels #explorepage #trending"
 """
 YOUTUBE_HASHTAGS = """
 .
 .
 .
-"#youtubeshorts #youtube #shorts #subscribe #viralshorts"
+"#shorts #youtubeshorts #viral #trending #fyp #explore #ytshorts #subscribe #contentcreator #newvideo #mustwatch #popular #reels #watchnow #entertainment #share #like #dailyvideos #creator #youtubevideo"
 """
 
 FACEBOOK_HASHTAGS = """
 .
 .
 .
-"#facebookreels #fb #reelsvideo #viralreels #fbreels"
+"#viral #fyp #trending #reels #explore #explorepage #share #like #follow #instagood #facebookreels #reelsvideo #newpost #contentcreator #dailycontent #watchnow #mustwatch #popular #entertainment #fbreels"
 """
 
 # --- HELPER FUNCTIONS ---
