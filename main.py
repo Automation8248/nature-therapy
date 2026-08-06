@@ -150,42 +150,56 @@ def get_available_item(category_name, file_path, history_data):
     return selected_item
 
 # -------------------------------------------------------------
-# 5. TENSORART IMAGE GENERATION
+# 5. TENSORART IMAGE GENERATION (UPDATED WORKFLOW API)
 # -------------------------------------------------------------
 def generate_image_tensorart(prompt):
     print(f"Generating image for prompt: {prompt}")
-    url = "https://api.tensor.art/v1/jobs"
+    
+    # Naya API Endpoint
+    url = "https://ap-east-1.tensorart.cloud/v1/jobs/workflow/template"
+    
     headers = {
         "Authorization": f"Bearer {TENSORART_API_KEY}",
         "Content-Type": "application/json"
     }
+    
+    # Updated Payload Structure
     payload = {
-        "request_id": str(random.randint(100000, 999999)), 
-        "stages": [
-            {"type": "INPUT_INITIALIZE", "inputInitialize": {"seed": -1, "count": 1}},
-            {
-                "type": "DIFFUSION",
-                "diffusion": {
-                    "prompts": [{"text": prompt}],
-                    "negativePrompts": [{"text": "ugly, bad quality, blurry, deformed, text, watermark"}],
-                    "width": 1024,
-                    "height": 1024,
-                    "steps": 20,
-                    "sdModel": "Z-Image-Turbo-FP8" 
+        "templateId": "799541882207328343",
+        "fields": {
+            "fieldAttrs": [
+                {
+                    "nodeId": "30",
+                    "fieldName": "ckpt_name",
+                    "fieldValue": "757279507095956705"
+                },
+                # ⚠️ IMPORTANT: Yahan par apne prompt block ka nodeId aur fieldName update karein
+                {
+                    "nodeId": "string", # Example: "6" 
+                    "fieldName": "string", # Example: "text" ya "positive_prompt"
+                    "fieldValue": "any"
                 }
-            }
-        ]
+            ]
+        }
     }
     
     try:
         response = requests.post(url, json=payload, headers=headers)
-        response.raise_for_status()
+        
+        if response.status_code != 200:
+             trigger_error_alert(f"TensorArt Error: {response.status_code} - {response.text}")
+             return None
+             
         job_id = response.json().get('job_id')
         
-        if not job_id: trigger_error_alert("Failed to get Job ID from TensorArt API")
+        if not job_id: 
+            trigger_error_alert("Failed to get Job ID from TensorArt API")
+            return None
              
         print(f"Job created: {job_id}. Waiting for completion...")
-        status_url = f"https://api.tensor.art/v1/jobs/{job_id}"
+        
+        # Naya Polling URL
+        status_url = f"https://ap-east-1.tensorart.cloud/v1/jobs/{job_id}"
         
         for i in range(30):
             time.sleep(10) 
@@ -202,11 +216,14 @@ def generate_image_tensorart(prompt):
                 
             elif status_data.get('status') == 'FAILED':
                 trigger_error_alert("TensorArt Job Failed internally")
+                return None
             
         trigger_error_alert("Timeout: Image took too long to generate (more than 5 mins)")
+        return None
         
     except Exception as e:
         trigger_error_alert(f"TensorArt API Connection Failed: {e}")
+        return None
 
 # -------------------------------------------------------------
 # 6. MULTI-HOST FALLBACK UPLOAD
