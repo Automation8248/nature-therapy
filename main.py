@@ -4,16 +4,18 @@ import time
 import json
 import requests
 import sys
+import glob
+import shutil
+from icrawler.builtin import BingImageCrawler
 
 # -------------------------------------------------------------
 # 1. SECRETS & VARIABLES
 # -------------------------------------------------------------
-AUTOMATION_NAME = "TensorArt Image Poster"
+AUTOMATION_NAME = "Nature Crawler Poster"
 SOCIAL_MEDIA_NAME = "Make.com (Instagram/Facebook)"
 COOLDOWN_DAYS = 30
 COOLDOWN_SECONDS = COOLDOWN_DAYS * 24 * 60 * 60
 
-TENSORART_API_KEY = os.environ.get("TENSORART_API_KEY")
 MAKE_WEBHOOK_URL = os.environ.get("MAKE_WEBHOOK_URL")
 
 SUCCESS_BOT_TOKEN = os.environ.get("TELEGRAM_SUCCESS_BOT_TOKEN")
@@ -24,64 +26,12 @@ ERROR_CHAT_ID = os.environ.get("TELEGRAM_ERROR_CHAT_ID")
 HISTORY_FILE = "data/history.json"
 
 # -------------------------------------------------------------
-# 2. 50+ USER AGENTS LIST
+# 2. USER AGENTS (For Fallback Uploads)
 # -------------------------------------------------------------
 USER_AGENTS = [
-    # Windows
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36 OPR/104.0.0.0",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 11.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    # Mac OS
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_2_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 OPR/105.0.0.0",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
-    # Linux
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64; rv:121.0) Gecko/20100101 Firefox/121.0",
-    "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:121.0) Gecko/20100101 Firefox/121.0",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 OPR/105.0.0.0",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Vivaldi/6.5.3206.50",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
-    "Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:121.0) Gecko/20100101 Firefox/121.0",
-    # Android (Mobile)
-    "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 12; Pixel 6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 13; SM-A546B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 11; Redmi Note 9 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 12; M2101K6G) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-    "Mozilla/5.0 (Android 13; Mobile; rv:121.0) Gecko/121.0 Firefox/121.0",
-    "Mozilla/5.0 (Linux; Android 13; SM-S911B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36 EdgA/120.0.0.0",
-    "Mozilla/5.0 (Linux; Android 12; V2111) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 13; 22101316G) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 11; vivo 1920) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-    # iOS (iPhone/iPad)
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1",
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_1_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1",
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 16_7_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
-    "Mozilla/5.0 (iPad; CPU OS 17_2_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1",
-    "Mozilla/5.0 (iPad; CPU OS 16_7_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/120.0.6099.119 Mobile/15E148 Safari/604.1",
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/121.0 Mobile/15E148 Safari/605.1.15",
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) EdgiOS/120.0.2210.150 Version/17.2 Mobile/15E148 Safari/604.1",
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 15_8 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6 Mobile/15E148 Safari/604.1",
-    "Mozilla/5.0 (iPad; CPU OS 15_8 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6 Mobile/15E148 Safari/604.1"
+    "Mozilla/5.0 (X11; Linux x86_64; rv:121.0) Gecko/20100101 Firefox/121.0"
 ]
 
 def get_headers():
@@ -98,16 +48,14 @@ def trigger_error_alert(error_detail):
     error_msg = (
         f"🚨 <b>AUTOMATION FAILED!</b>\n\n"
         f"🤖 <b>Bot Name:</b> {AUTOMATION_NAME}\n"
-        f"🌐 <b>Platform:</b> {SOCIAL_MEDIA_NAME}\n"
         f"❌ <b>Error:</b> {error_detail}"
     )
     url = f"https://api.telegram.org/bot{ERROR_BOT_TOKEN}/sendMessage"
-    payload = {"chat_id": ERROR_CHAT_ID, "text": error_msg, "parse_mode": "HTML"}
-    requests.post(url, json=payload)
+    requests.post(url, json={"chat_id": ERROR_CHAT_ID, "text": error_msg, "parse_mode": "HTML"})
     sys.exit(1)
 
 # -------------------------------------------------------------
-# 4. 30-DAY COOLDOWN LOGIC (NEW)
+# 4. 30-DAY COOLDOWN LOGIC
 # -------------------------------------------------------------
 def load_history():
     if not os.path.exists("data"):
@@ -122,7 +70,6 @@ def save_history(history_data):
         json.dump(history_data, f, indent=4)
 
 def get_available_item(category_name, file_path, history_data):
-    """File padhega, history check karega, aur sirf fresh items dega"""
     try:
         with open(file_path, 'r', encoding='utf-8') as file:
             all_items = [line.strip() for line in file.readlines() if line.strip()]
@@ -133,96 +80,49 @@ def get_available_item(category_name, file_path, history_data):
     available_items = []
 
     for item in all_items:
-        # Check if item is in history
         if item in history_data[category_name]:
             last_used_time = history_data[category_name][item]
-            # Agar 30 din (COOLDOWN_SECONDS) nahi hue hain, toh skip kardo
             if (current_time - last_used_time) < COOLDOWN_SECONDS:
                 continue
-        # Agar item history me nahi hai ya 30 din poore ho gaye, toh list me daal do
         available_items.append(item)
 
     if not available_items:
-        trigger_error_alert(f"All items in {category_name} are on 30-day cooldown! Please add more items to {file_path}.")
+        trigger_error_alert(f"All items in {category_name} are on 30-day cooldown! Please add more.")
 
-    # Ek fresh item randomly choose karo
-    selected_item = random.choice(available_items)
-    return selected_item
+    return random.choice(available_items)
 
 # -------------------------------------------------------------
-# 5. TENSORART IMAGE GENERATION (UPDATED WORKFLOW API)
+# 5. ICRAWLER: BING IMAGE DOWNLOAD (Your logic)
 # -------------------------------------------------------------
-def generate_image_tensorart(prompt):
-    print(f"Generating image for prompt: {prompt}")
+def download_image_from_bing(keyword):
+    print(f"Searching and downloading image for topic: {keyword}")
     
-    # Naya API Endpoint
-    url = "https://ap-east-1.tensorart.cloud/v1/jobs/workflow/template"
+    # Aapke code ke according folder name set karna
+    folder_name = f'image/{keyword.replace(" ",".")}'
     
-    headers = {
-        "Authorization": f"Bearer {TENSORART_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    
-    # Updated Payload Structure
-    payload = {
-        "templateId": "799541882207328343",
-        "fields": {
-            "fieldAttrs": [
-                {
-                    "nodeId": "30",
-                    "fieldName": "ckpt_name",
-                    "fieldValue": "757279507095956705"
-                },
-                # ⚠️ IMPORTANT: Yahan par apne prompt block ka nodeId aur fieldName update karein
-                {
-                    "nodeId": "string", # Example: "6" 
-                    "fieldName": "string", # Example: "text" ya "positive_prompt"
-                    "fieldValue": "any"
-                }
-            ]
-        }
-    }
+    # Agar purana folder exist karta hai, toh usko clean karo taaki purani file upload na ho
+    if os.path.exists(folder_name):
+        shutil.rmtree(folder_name)
+    os.makedirs(folder_name, exist_ok=True)
     
     try:
-        response = requests.post(url, json=payload, headers=headers)
+        # Aapka Diya Hua iCrawler Code
+        bing_crawler = BingImageCrawler(storage={'root_dir': folder_name})
+        # max_num=1 set kiya hai kyunki daily 1 image post karni hai
+        bing_crawler.crawl(keyword=keyword, filters=None, max_num=1, offset=0)
         
-        if response.status_code != 200:
-             trigger_error_alert(f"TensorArt Error: {response.status_code} - {response.text}")
-             return None
-             
-        job_id = response.json().get('job_id')
+        # Download hone ke baad file find karna (.jpg, .png etc.)
+        downloaded_files = glob.glob(f"{folder_name}/*")
         
-        if not job_id: 
-            trigger_error_alert("Failed to get Job ID from TensorArt API")
+        if not downloaded_files:
+            trigger_error_alert(f"No image downloaded by Bing Crawler for keyword: {keyword}")
             return None
-             
-        print(f"Job created: {job_id}. Waiting for completion...")
-        
-        # Naya Polling URL
-        status_url = f"https://ap-east-1.tensorart.cloud/v1/jobs/{job_id}"
-        
-        for i in range(30):
-            time.sleep(10) 
-            status_response = requests.get(status_url, headers=headers)
-            status_data = status_response.json()
             
-            if status_data.get('status') == 'SUCCESS':
-                image_url = status_data['successInfo']['images'][0]['url']
-                local_filename = "generated_img.jpg"
-                img_data = requests.get(image_url).content
-                with open(local_filename, 'wb') as handler:
-                    handler.write(img_data)
-                return local_filename
-                
-            elif status_data.get('status') == 'FAILED':
-                trigger_error_alert("TensorArt Job Failed internally")
-                return None
-            
-        trigger_error_alert("Timeout: Image took too long to generate (more than 5 mins)")
-        return None
+        print(f"Image successfully downloaded: {downloaded_files[0]}")
+        return downloaded_files[0]
         
     except Exception as e:
-        trigger_error_alert(f"TensorArt API Connection Failed: {e}")
+        trigger_error_alert(f"iCrawler Error: {e}")
         return None
 
 # -------------------------------------------------------------
@@ -230,17 +130,13 @@ def generate_image_tensorart(prompt):
 # -------------------------------------------------------------
 def upload_file_with_fallback(file_path):
     filename = os.path.basename(file_path)
+    print(f"Uploading file: {filename}")
+    
     upload_strategies = [
         ("Catbox", lambda: requests.post("https://catbox.moe/user/api.php", data={'reqtype': 'fileupload'}, files={'fileToUpload': open(file_path, 'rb')}, headers=get_headers(), timeout=30).text),
         ("Litterbox", lambda: requests.post("https://litterbox.catbox.moe/resources/internals/api.php", data={'reqtype': 'fileupload', 'time': '72h'}, files={'fileToUpload': open(file_path, 'rb')}, headers=get_headers(), timeout=30).text),
         ("0x0.st", lambda: requests.post("https://0x0.st", files={'file': open(file_path, 'rb')}, headers=get_headers(), timeout=30).text.strip()),
-        ("Transfer.sh", lambda: requests.put(f"https://transfer.sh/{filename}", data=open(file_path, 'rb'), headers=get_headers(), timeout=30).text.strip()),
-        ("Uguu.se", lambda: requests.post("https://uguu.se/upload.php", files={'files[]': open(file_path, 'rb')}, headers=get_headers(), timeout=30).json()['files'][0]['url']),
-        ("Tmpfiles.org", lambda: requests.post("https://tmpfiles.org/api/v1/upload", files={'file': open(file_path, 'rb')}, headers=get_headers(), timeout=30).json()['data']['url'].replace('tmpfiles.org/', 'tmpfiles.org/dl/')),
-        ("Pomf.lain.la", lambda: requests.post("https://pomf.lain.la/upload.php", files={'files[]': open(file_path, 'rb')}, headers=get_headers(), timeout=30).json()['files'][0]['url']),
-        ("Temp.sh", lambda: requests.put(f"https://temp.sh/{filename}", data=open(file_path, 'rb'), headers=get_headers(), timeout=30).text.strip()),
-        ("Bashupload", lambda: requests.put(f"https://bashupload.com/{filename}", data=open(file_path, 'rb'), headers=get_headers(), timeout=30).text.split('wget ')[1].split('\n')[0].strip()),
-        ("File.io", lambda: requests.post("https://file.io", files={'file': open(file_path, 'rb')}, headers=get_headers(), timeout=30).json()['link'])
+        ("Uguu.se", lambda: requests.post("https://uguu.se/upload.php", files={'files[]': open(file_path, 'rb')}, headers=get_headers(), timeout=30).json()['files'][0]['url'])
     ]
 
     random.shuffle(upload_strategies)
@@ -253,10 +149,10 @@ def upload_file_with_fallback(file_path):
                 print(f"✅ Upload successful on {provider_name}")
                 return upload_url
         except Exception as e:
-            print(f"❌ Failed on {provider_name}: {str(e)[:50]}...")
+            print(f"❌ Failed on {provider_name}")
             time.sleep(2) 
             
-    trigger_error_alert("All Image Hosting Providers Failed. Unable to upload the generated image.")
+    trigger_error_alert("All Image Hosting Providers Failed. Unable to upload the downloaded image.")
     return None
 
 # -------------------------------------------------------------
@@ -276,40 +172,37 @@ def send_to_make_webhook(title, hashtags, image_url):
 # 8. MAIN EXECUTION
 # -------------------------------------------------------------
 def main():
-    print("Starting Automation Workflow with 30-Day Cooldown...")
+    print("Starting Nature Crawler Workflow with 30-Day Cooldown...")
     
-    # Step 1: Load History
+    # 1. Load History & Get Data
     history_data = load_history()
-
-    # Step 2: Get Fresh Items (jo 30 din me use nahi hue)
-    prompt = get_available_item("prompts", "data/prompts.txt", history_data)
+    keyword = get_available_item("prompts", "data/prompts.txt", history_data) # Aapke nature topics yahan se aayenge
     title = get_available_item("titles", "data/titles.txt", history_data)
     hashtags = get_available_item("hashtags", "data/hashtags.txt", history_data)
     
-    # Step 3: Generate
-    image_path = generate_image_tensorart(prompt)
-
-    # Step 4: Upload
+    # 2. Bing Se Download Karo
+    image_path = download_image_from_bing(keyword)
+    
+    # 3. Downloaded Image Ko Catbox/0x0 Par Upload Karo
     final_image_url = upload_file_with_fallback(image_path)
-
-    # Step 5: Webhook to Make.com
+    
+    # 4. Webhook to Make.com
     send_to_make_webhook(title, hashtags, final_image_url)
     
-    # Step 6: Sab success hone ke baad history update karna
+    # 5. History Update Karo
     current_time = time.time()
-    history_data["prompts"][prompt] = current_time
+    history_data["prompts"][keyword] = current_time
     history_data["titles"][title] = current_time
     history_data["hashtags"][hashtags] = current_time
     save_history(history_data)
     
-    # Step 7: Success Notification
+    # 6. Success Notification
     host_domain = final_image_url.split('/')[2] if '/' in final_image_url else "Unknown Host"
-    success_msg = f"✅ <b>Post Successfully Uploaded!</b>\n\n🌐 <b>Platform:</b> {SOCIAL_MEDIA_NAME}\n🖼️ <b>Host:</b> {host_domain}\n📝 <b>Title:</b> {title}"
+    success_msg = f"✅ <b>Post Successfully Uploaded!</b>\n\n🌐 <b>Topic:</b> {keyword}\n🖼️ <b>Host:</b> {host_domain}\n📝 <b>Title:</b> {title}"
     
     if SUCCESS_BOT_TOKEN and SUCCESS_CHAT_ID:
         url = f"https://api.telegram.org/bot{SUCCESS_BOT_TOKEN}/sendMessage"
-        payload = {"chat_id": SUCCESS_CHAT_ID, "text": success_msg, "parse_mode": "HTML"}
-        requests.post(url, json=payload)
+        requests.post(url, json={"chat_id": SUCCESS_CHAT_ID, "text": success_msg, "parse_mode": "HTML"})
         
     print("Workflow completed successfully. History updated for next run.")
 
