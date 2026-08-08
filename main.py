@@ -61,7 +61,7 @@ def load_history():
     if not os.path.exists("data"):
         os.makedirs("data")
     if not os.path.exists(HISTORY_FILE):
-        return {"prompts": {}, "titles": {}, "hashtags": {}}
+        return {"titles": {}, "hashtags": {}} # Removed prompts
     with open(HISTORY_FILE, 'r') as f:
         return json.load(f)
 
@@ -92,26 +92,23 @@ def get_available_item(category_name, file_path, history_data):
     return random.choice(available_items)
 
 # -------------------------------------------------------------
-# 5. ICRAWLER: BING IMAGE DOWNLOAD (Your logic)
+# 5. ICRAWLER: BING IMAGE DOWNLOAD
 # -------------------------------------------------------------
-def download_image_from_bing(keyword):
+def download_image_from_bing():
+    # Fix keyword as requested, no prompt used
+    keyword = "Natural Nature image" 
     print(f"Searching and downloading image for topic: {keyword}")
     
-    # Aapke code ke according folder name set karna
     folder_name = f'image/{keyword.replace(" ",".")}'
     
-    # Agar purana folder exist karta hai, toh usko clean karo taaki purani file upload na ho
     if os.path.exists(folder_name):
         shutil.rmtree(folder_name)
     os.makedirs(folder_name, exist_ok=True)
     
     try:
-        # Aapka Diya Hua iCrawler Code
         bing_crawler = BingImageCrawler(storage={'root_dir': folder_name})
-        # max_num=1 set kiya hai kyunki daily 1 image post karni hai
         bing_crawler.crawl(keyword=keyword, filters=None, max_num=1, offset=0)
         
-        # Download hone ke baad file find karna (.jpg, .png etc.)
         downloaded_files = glob.glob(f"{folder_name}/*")
         
         if not downloaded_files:
@@ -158,9 +155,10 @@ def upload_file_with_fallback(file_path):
 # -------------------------------------------------------------
 # 7. MAKE.COM WEBHOOK
 # -------------------------------------------------------------
-def send_to_make_webhook(title, hashtags, image_url):
+def send_to_make_webhook(title, hashtags, media_url): # Changed image_url to media_url
     print("Sending data to Make.com Webhook...")
-    payload = {"title": title, "hashtags": hashtags, "image_url": image_url}
+    # Updated payload keys as requested
+    payload = {"title": title, "hashtags": hashtags, "media_url": media_url}
     try:
         response = requests.post(MAKE_WEBHOOK_URL, json=payload, headers=get_headers())
         response.raise_for_status()
@@ -176,29 +174,34 @@ def main():
     
     # 1. Load History & Get Data
     history_data = load_history()
-    keyword = get_available_item("prompts", "data/prompts.txt", history_data) # Aapke nature topics yahan se aayenge
+    
+    # Initialize missing keys if needed
+    if "titles" not in history_data:
+        history_data["titles"] = {}
+    if "hashtags" not in history_data:
+        history_data["hashtags"] = {}
+        
     title = get_available_item("titles", "data/titles.txt", history_data)
     hashtags = get_available_item("hashtags", "data/hashtags.txt", history_data)
     
-    # 2. Bing Se Download Karo
-    image_path = download_image_from_bing(keyword)
+    # 2. Bing Se Download Karo (Prompt nahi use hoga, fixed topic use hoga)
+    image_path = download_image_from_bing()
     
     # 3. Downloaded Image Ko Catbox/0x0 Par Upload Karo
-    final_image_url = upload_file_with_fallback(image_path)
+    final_media_url = upload_file_with_fallback(image_path)
     
     # 4. Webhook to Make.com
-    send_to_make_webhook(title, hashtags, final_image_url)
+    send_to_make_webhook(title, hashtags, final_media_url)
     
     # 5. History Update Karo
     current_time = time.time()
-    history_data["prompts"][keyword] = current_time
     history_data["titles"][title] = current_time
     history_data["hashtags"][hashtags] = current_time
     save_history(history_data)
     
     # 6. Success Notification
-    host_domain = final_image_url.split('/')[2] if '/' in final_image_url else "Unknown Host"
-    success_msg = f"✅ <b>Post Successfully Uploaded!</b>\n\n🌐 <b>Topic:</b> {keyword}\n🖼️ <b>Host:</b> {host_domain}\n📝 <b>Title:</b> {title}"
+    host_domain = final_media_url.split('/')[2] if '/' in final_media_url else "Unknown Host"
+    success_msg = f"✅ <b>Post Successfully Uploaded!</b>\n\n🌐 <b>Topic:</b> Natural Nature image\n🖼️ <b>Host:</b> {host_domain}\n📝 <b>Title:</b> {title}"
     
     if SUCCESS_BOT_TOKEN and SUCCESS_CHAT_ID:
         url = f"https://api.telegram.org/bot{SUCCESS_BOT_TOKEN}/sendMessage"
