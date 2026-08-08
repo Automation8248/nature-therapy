@@ -96,7 +96,7 @@ def get_available_item(category_name, file_path, history_data):
 # -------------------------------------------------------------
 def download_image_from_bing():
     # Fix keyword as requested, no prompt used
-    keyword = "Natural Nature image" 
+    keyword = "Nature image" 
     print(f"Searching and downloading image for topic: {keyword}")
     
     folder_name = f'image/{keyword.replace(" ",".")}'
