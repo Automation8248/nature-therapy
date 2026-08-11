@@ -6,7 +6,7 @@ from datetime import datetime
 
 # ================= CONFIGURATION =================
 # Webhook URL (Make.com ya Zapier)
-MAKE_WEBHOOK_URL = "YOUR_MAKE_WEBHOOK_URL"
+MAKE_WEBHOOK_URL = "MAKE_WEBHOOK_URL"
 
 # Telegram Setup (Alag Tokens, Alag Chat IDs)
 TELEGRAM_SUCCESS_BOT_TOKEN = "YOUR_SUCCESS_BOT_TOKEN"
