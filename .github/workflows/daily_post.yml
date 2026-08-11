@@ -2,15 +2,15 @@ name: USA Daily Auto Poster
 
 on:
   schedule:
-    # Yeh rozana UTC time 01:00 AM par chalega (India ke 6:30 AM / USA ke 8:00 PM)
+    # Yeh rozana UTC time 01:00 AM par chalega (India ke 6:30 AM / USA ke 8:00 PM EST)
     - cron: '0 1 * * *'
-  workflow_dispatch: # Isse aap manually bhi "Run workflow" button daba kar test kar sakte hain
+  workflow_dispatch: # Isse aap manually bhi "Run workflow" daba kar test kar sakte hain
 
 jobs:
   run-automation:
     runs-on: ubuntu-latest
     
-    # Ye permission zaroori hai taaki script delete hui images ko GitHub par save kar sake
+    # Ye permission zaroori hai taaki script delete hui images ko GitHub par wapas save kar sake
     permissions:
       contents: write
 
@@ -24,16 +24,29 @@ jobs:
           python-version: '3.10'
 
       - name: Install Dependencies
-        run: pip install -r requirements.txt
+        # Agar aapne requirements.txt nahi banayi hai, toh direct requests install kar dega
+        run: pip install requests
 
       - name: Run Auto Poster Script
+        env:
+          # GitHub Secrets se data nikaal kar Python (os.getenv) ko dega
+          MAKE_WEBHOOK_URL: ${{ secrets.MAKE_WEBHOOK_URL }}
+          TELEGRAM_SUCCESS_BOT_TOKEN: ${{ secrets.TELEGRAM_SUCCESS_BOT_TOKEN }}
+          TELEGRAM_SUCCESS_CHAT_ID: ${{ secrets.TELEGRAM_SUCCESS_CHAT_ID }}
+          TELEGRAM_ERROR_BOT_TOKEN: ${{ secrets.TELEGRAM_ERROR_BOT_TOKEN }}
+          TELEGRAM_ERROR_CHAT_ID: ${{ secrets.TELEGRAM_ERROR_CHAT_ID }}
         run: python main.py
 
-      - name: Commit and Push Changes (Save history & remove used images)
+      - name: Commit and Push Changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add history.json images/
-          # Agar koi image delete hui hai ya history update hui hai, tabhi commit karega
+          
+          # -A ka matlab hai saare changes (update hui history aur delete hui image) ko stage karna
+          git add -A
+          
+          # Agar kuch change hua hai (file delete ya history update), tabhi commit karega
           git diff --staged --quiet || git commit -m "Auto-update: updated history and removed used image"
+          
+          # Changes ko repository mein push karega
           git push
