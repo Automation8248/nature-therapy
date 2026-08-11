@@ -1,213 +1,153 @@
-import os
-import random
-import time
-import json
 import requests
-import sys
-import glob
-import shutil
-from icrawler.builtin import BingImageCrawler
+import random
+import os
+import json
+from datetime import datetime
 
-# -------------------------------------------------------------
-# 1. SECRETS & VARIABLES
-# -------------------------------------------------------------
-AUTOMATION_NAME = "Nature Crawler Poster"
-SOCIAL_MEDIA_NAME = "Make.com (Instagram/Facebook)"
+# ================= CONFIGURATION =================
+# Webhook URL
+MAKE_WEBHOOK_URL = "YOUR_MAKE_WEBHOOK_URL"
+
+# Telegram Setup (Alag Tokens, Alag Chat IDs)
+TELEGRAM_SUCCESS_BOT_TOKEN = "YOUR_SUCCESS_BOT_TOKEN"
+TELEGRAM_SUCCESS_CHAT_ID = "YOUR_SUCCESS_CHAT_ID"
+
+TELEGRAM_ERROR_BOT_TOKEN = "YOUR_ERROR_BOT_TOKEN"
+TELEGRAM_ERROR_CHAT_ID = "YOUR_ERROR_CHAT_ID"
+
+# Automation Info (Jo Telegram par jayega)
+AUTOMATION_NAME = "My AutoPoster Pro"
+SOCIAL_MEDIA_NAME = "Facebook & Instagram (USA Target)"
+
+# Cooldown Time
 COOLDOWN_DAYS = 30
-COOLDOWN_SECONDS = COOLDOWN_DAYS * 24 * 60 * 60
 
-MAKE_WEBHOOK_URL = os.environ.get("MAKE_WEBHOOK_URL")
+# File Paths
+HISTORY_FILE = "history.json"
+TITLES_FILE = "titles.txt"
+HASHTAGS_FILE = "hashtags.txt"
+IMAGE_FOLDER = "images"
+# =================================================
 
-SUCCESS_BOT_TOKEN = os.environ.get("TELEGRAM_SUCCESS_BOT_TOKEN")
-SUCCESS_CHAT_ID = os.environ.get("TELEGRAM_SUCCESS_CHAT_ID")
-ERROR_BOT_TOKEN = os.environ.get("TELEGRAM_ERROR_BOT_TOKEN")
-ERROR_CHAT_ID = os.environ.get("TELEGRAM_ERROR_CHAT_ID")
-
-HISTORY_FILE = "data/history.json"
-
-# -------------------------------------------------------------
-# 2. USER AGENTS (For Fallback Uploads)
-# -------------------------------------------------------------
-USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64; rv:121.0) Gecko/20100101 Firefox/121.0"
-]
-
-def get_headers():
-    return {"User-Agent": random.choice(USER_AGENTS)}
-
-# -------------------------------------------------------------
-# 3. TELEGRAM ALERTS
-# -------------------------------------------------------------
-def trigger_error_alert(error_detail):
-    print(f"ERROR: {error_detail}")
-    if not ERROR_BOT_TOKEN or not ERROR_CHAT_ID:
-        sys.exit(1)
-        
-    error_msg = (
-        f"🚨 <b>AUTOMATION FAILED!</b>\n\n"
-        f"🤖 <b>Bot Name:</b> {AUTOMATION_NAME}\n"
-        f"❌ <b>Error:</b> {error_detail}"
-    )
-    url = f"https://api.telegram.org/bot{ERROR_BOT_TOKEN}/sendMessage"
-    requests.post(url, json={"chat_id": ERROR_CHAT_ID, "text": error_msg, "parse_mode": "HTML"})
-    sys.exit(1)
-
-# -------------------------------------------------------------
-# 4. 30-DAY COOLDOWN LOGIC
-# -------------------------------------------------------------
 def load_history():
-    if not os.path.exists("data"):
-        os.makedirs("data")
-    if not os.path.exists(HISTORY_FILE):
-        return {"titles": {}, "hashtags": {}} # Removed prompts
-    with open(HISTORY_FILE, 'r') as f:
-        return json.load(f)
+    """History file load karta hai taaki cooldown track ho sake."""
+    if os.path.exists(HISTORY_FILE):
+        with open(HISTORY_FILE, "r") as f:
+            return json.load(f)
+    return {"titles": {}, "hashtags": {}}
 
-def save_history(history_data):
-    with open(HISTORY_FILE, 'w') as f:
-        json.dump(history_data, f, indent=4)
+def save_history(history):
+    """Update ki hui history save karta hai."""
+    with open(HISTORY_FILE, "w") as f:
+        json.dump(history, f, indent=4)
 
-def get_available_item(category_name, file_path, history_data):
+def get_available_item(file_path, item_type, history):
+    """30 days ke cooldown ko check karke random title/hashtag pick karta hai."""
     try:
-        with open(file_path, 'r', encoding='utf-8') as file:
-            all_items = [line.strip() for line in file.readlines() if line.strip()]
-    except Exception as e:
-        trigger_error_alert(f"Failed to read {file_path}: {e}")
-
-    current_time = time.time()
-    available_items = []
-
-    for item in all_items:
-        if item in history_data[category_name]:
-            last_used_time = history_data[category_name][item]
-            if (current_time - last_used_time) < COOLDOWN_SECONDS:
-                continue
-        available_items.append(item)
-
-    if not available_items:
-        trigger_error_alert(f"All items in {category_name} are on 30-day cooldown! Please add more.")
-
-    return random.choice(available_items)
-
-# -------------------------------------------------------------
-# 5. ICRAWLER: BING IMAGE DOWNLOAD
-# -------------------------------------------------------------
-def download_image_from_bing():
-    # Fix keyword as requested, no prompt used
-    keyword = "Nature image" 
-    print(f"Searching and downloading image for topic: {keyword}")
-    
-    folder_name = f'image/{keyword.replace(" ",".")}'
-    
-    if os.path.exists(folder_name):
-        shutil.rmtree(folder_name)
-    os.makedirs(folder_name, exist_ok=True)
-    
-    try:
-        bing_crawler = BingImageCrawler(storage={'root_dir': folder_name})
-        bing_crawler.crawl(keyword=keyword, filters=None, max_num=1, offset=0)
-        
-        downloaded_files = glob.glob(f"{folder_name}/*")
-        
-        if not downloaded_files:
-            trigger_error_alert(f"No image downloaded by Bing Crawler for keyword: {keyword}")
-            return None
+        with open(file_path, "r", encoding="utf-8") as f:
+            items = [line.strip() for line in f.readlines() if line.strip()]
             
-        print(f"Image successfully downloaded: {downloaded_files[0]}")
-        return downloaded_files[0]
+        available_items = []
+        now = datetime.now()
         
-    except Exception as e:
-        trigger_error_alert(f"iCrawler Error: {e}")
-        return None
-
-# -------------------------------------------------------------
-# 6. MULTI-HOST FALLBACK UPLOAD
-# -------------------------------------------------------------
-def upload_file_with_fallback(file_path):
-    filename = os.path.basename(file_path)
-    print(f"Uploading file: {filename}")
-    
-    upload_strategies = [
-        ("Catbox", lambda: requests.post("https://catbox.moe/user/api.php", data={'reqtype': 'fileupload'}, files={'fileToUpload': open(file_path, 'rb')}, headers=get_headers(), timeout=30).text),
-        ("Litterbox", lambda: requests.post("https://litterbox.catbox.moe/resources/internals/api.php", data={'reqtype': 'fileupload', 'time': '72h'}, files={'fileToUpload': open(file_path, 'rb')}, headers=get_headers(), timeout=30).text),
-        ("0x0.st", lambda: requests.post("https://0x0.st", files={'file': open(file_path, 'rb')}, headers=get_headers(), timeout=30).text.strip()),
-        ("Uguu.se", lambda: requests.post("https://uguu.se/upload.php", files={'files[]': open(file_path, 'rb')}, headers=get_headers(), timeout=30).json()['files'][0]['url'])
-    ]
-
-    random.shuffle(upload_strategies)
-
-    for i, (provider_name, upload_func) in enumerate(upload_strategies):
-        print(f"[{i+1}/{len(upload_strategies)}] Trying to upload via {provider_name}...")
-        try:
-            upload_url = upload_func()
-            if upload_url and upload_url.startswith("http"):
-                print(f"✅ Upload successful on {provider_name}")
-                return upload_url
-        except Exception as e:
-            print(f"❌ Failed on {provider_name}")
-            time.sleep(2) 
+        for item in items:
+            if item in history[item_type]:
+                last_used_date = datetime.strptime(history[item_type][item], "%Y-%m-%d")
+                days_passed = (now - last_used_date).days
+                if days_passed >= COOLDOWN_DAYS:
+                    available_items.append(item)
+            else:
+                available_items.append(item)
+                
+        if not available_items:
+            raise Exception(f"Sabhi {item_type} cooldown mein hain! Kripya naye data add karein.")
             
-    trigger_error_alert("All Image Hosting Providers Failed. Unable to upload the downloaded image.")
-    return None
+        return random.choice(available_items)
+    except FileNotFoundError:
+        raise Exception(f"File {file_path} nahi mili!")
 
-# -------------------------------------------------------------
-# 7. MAKE.COM WEBHOOK
-# -------------------------------------------------------------
-def send_to_make_webhook(title, hashtags, media_url): # Changed image_url to media_url
-    print("Sending data to Make.com Webhook...")
-    # Updated payload keys as requested
-    payload = {"title": title, "hashtags": hashtags, "media_url": media_url}
+def send_telegram_log(status, error_message=""):
+    """Telegram par Success ya Error ka log bhejta hai naye variables ke sath."""
+    if status == "success":
+        bot_token = TELEGRAM_SUCCESS_BOT_TOKEN
+        chat_id = TELEGRAM_SUCCESS_CHAT_ID
+        text_message = f"✅ **SUCCESS**\n\n🤖 **Automation:** {AUTOMATION_NAME}\n🌐 **Social Media:** {SOCIAL_MEDIA_NAME}\n\nStatus: Aaj ka task successfully complete ho gaya hai! Image delete kar di gayi hai."
+    else:
+        bot_token = TELEGRAM_ERROR_BOT_TOKEN
+        chat_id = TELEGRAM_ERROR_CHAT_ID
+        text_message = f"❌ **ERROR ALERT**\n\n🤖 **Automation:** {AUTOMATION_NAME}\n🌐 **Social Media:** {SOCIAL_MEDIA_NAME}\n\n⚠️ **Error Detail:**\n{error_message}"
+
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    payload = {"chat_id": chat_id, "text": text_message, "parse_mode": "Markdown"}
+    
     try:
-        response = requests.post(MAKE_WEBHOOK_URL, json=payload, headers=get_headers())
-        response.raise_for_status()
-        return True
+        requests.post(url, json=payload)
     except Exception as e:
-        trigger_error_alert(f"Make.com Webhook Failed: {e}")
+        print(f"Telegram notification failed: {e}")
 
-# -------------------------------------------------------------
-# 8. MAIN EXECUTION
-# -------------------------------------------------------------
-def main():
-    print("Starting Nature Crawler Workflow with 30-Day Cooldown...")
-    
-    # 1. Load History & Get Data
-    history_data = load_history()
-    
-    # Initialize missing keys if needed
-    if "titles" not in history_data:
-        history_data["titles"] = {}
-    if "hashtags" not in history_data:
-        history_data["hashtags"] = {}
+def send_to_webhook_direct(image_path, title, hashtag):
+    """Webhook par actual image file aur data direct bhejta hai."""
+    with open(image_path, "rb") as img_file:
+        files = {
+            "image": img_file  # Webhook par image is key par aayegi
+        }
+        data = {
+            "title": title,
+            "hashtags": hashtag
+        }
+        response = requests.post(MAKE_WEBHOOK_URL, data=data, files=files)
         
-    title = get_available_item("titles", "data/titles.txt", history_data)
-    hashtags = get_available_item("hashtags", "data/hashtags.txt", history_data)
-    
-    # 2. Bing Se Download Karo (Prompt nahi use hoga, fixed topic use hoga)
-    image_path = download_image_from_bing()
-    
-    # 3. Downloaded Image Ko Catbox/0x0 Par Upload Karo
-    final_media_url = upload_file_with_fallback(image_path)
-    
-    # 4. Webhook to Make.com
-    send_to_make_webhook(title, hashtags, final_media_url)
-    
-    # 5. History Update Karo
-    current_time = time.time()
-    history_data["titles"][title] = current_time
-    history_data["hashtags"][hashtags] = current_time
-    save_history(history_data)
-    
-    # 6. Success Notification
-    host_domain = final_media_url.split('/')[2] if '/' in final_media_url else "Unknown Host"
-    success_msg = f"✅ <b>Post Successfully Uploaded!</b>\n\n🌐 <b>Topic:</b> Natural Nature image\n🖼️ <b>Host:</b> {host_domain}\n📝 <b>Title:</b> {title}"
-    
-    if SUCCESS_BOT_TOKEN and SUCCESS_CHAT_ID:
-        url = f"https://api.telegram.org/bot{SUCCESS_BOT_TOKEN}/sendMessage"
-        requests.post(url, json={"chat_id": SUCCESS_CHAT_ID, "text": success_msg, "parse_mode": "HTML"})
+        if response.status_code not in [200, 204, 201]:
+            raise Exception(f"Webhook error: {response.text}")
+
+def daily_job():
+    """Ye main function hai jo daily run hoga."""
+    print(f"\n--- Starting Job: {datetime.now()} ---")
+    try:
+        # 1. Cooldown history load karein
+        history = load_history()
         
-    print("Workflow completed successfully. History updated for next run.")
+        # 2. Pick Title & Hashtag
+        title = get_available_item(TITLES_FILE, "titles", history)
+        hashtag = get_available_item(HASHTAGS_FILE, "hashtags", history)
+        
+        # 3. Pick random Image from 'images' folder (SIRF IMAGES PICK KAREGA, TXT IGNORE KAREGA)
+        if not os.path.exists(IMAGE_FOLDER):
+            os.makedirs(IMAGE_FOLDER)
+            raise Exception("Images folder empty ya create kiya gaya hai. Images add karein!")
+            
+        valid_extensions = ('.jpg', '.jpeg', '.png', '.gif', '.webp')
+        images = [f for f in os.listdir(IMAGE_FOLDER) if f.lower().endswith(valid_extensions)]
+        
+        if not images:
+            raise Exception("Images folder mein koi VALID image file nahi bachi hai!")
+            
+        selected_image = random.choice(images)
+        image_path = os.path.join(IMAGE_FOLDER, selected_image)
+        
+        # 4. Send File & Data to Webhook Directly
+        print(f"Sending {selected_image} and data to Webhook...")
+        send_to_webhook_direct(image_path, title, hashtag)
+        
+        # 5. Update History with today's date
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        history["titles"][title] = today_str
+        history["hashtags"][hashtag] = today_str
+        save_history(history)
+        
+        # 6. Automatic Image Deletion
+        os.remove(image_path)
+        print(f"Image {selected_image} successfully deleted from folder.")
+        
+        # 7. Send Success to Telegram Bot
+        print("Job successful! Sending Telegram Success log.")
+        send_telegram_log(status="success")
+        
+    except Exception as e:
+        print(f"Error occurred: {e}")
+        # Send Error to Telegram Bot
+        send_telegram_log(status="error", error_message=str(e))
 
 if __name__ == "__main__":
-    main()
+    # GitHub Actions isko daily cron job ke through trigger karega
+    daily_job()
