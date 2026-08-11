@@ -1,41 +1,39 @@
-name: Daily Nature Image Poster
+name: USA Daily Auto Poster
 
 on:
   schedule:
-    - cron: '30 4 * * *' # Roz subah 10:00 AM IST chalega
-  workflow_dispatch: 
-
-permissions:
-  contents: write
+    # Yeh rozana UTC time 01:00 AM par chalega (India ke 6:30 AM / USA ke 8:00 PM)
+    - cron: '0 1 * * *'
+  workflow_dispatch: # Isse aap manually bhi "Run workflow" button daba kar test kar sakte hain
 
 jobs:
-  run-bot:
+  run-automation:
     runs-on: ubuntu-latest
+    
+    # Ye permission zaroori hai taaki script delete hui images ko GitHub par save kar sake
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
       - name: Install Dependencies
-        # ⚠️ Yahan icrawler add kiya gaya hai
-        run: pip install requests icrawler 
+        run: pip install -r requirements.txt
 
-      - name: Run Python Script
-        env:
-          MAKE_WEBHOOK_URL: ${{ secrets.MAKE_WEBHOOK_URL }}
-          TELEGRAM_SUCCESS_BOT_TOKEN: ${{ secrets.TELEGRAM_SUCCESS_BOT_TOKEN }}
-          TELEGRAM_SUCCESS_CHAT_ID: ${{ secrets.TELEGRAM_SUCCESS_CHAT_ID }}
-          TELEGRAM_ERROR_BOT_TOKEN: ${{ secrets.TELEGRAM_ERROR_BOT_TOKEN }}
-          TELEGRAM_ERROR_CHAT_ID: ${{ secrets.TELEGRAM_ERROR_CHAT_ID }}
+      - name: Run Auto Poster Script
         run: python main.py
 
-      - name: Commit and Push History
+      - name: Commit and Push Changes (Save history & remove used images)
         run: |
-          git config --global user.name "GitHub Actions Bot"
-          git config --global user.email "actions@github.com"
-          git add data/history.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Updated 30-day cooldown history" && git push)
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add history.json images/
+          # Agar koi image delete hui hai ya history update hui hai, tabhi commit karega
+          git diff --staged --quiet || git commit -m "Auto-update: updated history and removed used image"
+          git push
